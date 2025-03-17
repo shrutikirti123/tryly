@@ -4,24 +4,85 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>WebAR Dress Try-On</title>
-    <script type="module" src="https://unpkg.com/@google/model-viewer/dist/model-viewer.min.js"></script>
+
+    <!-- Load Three.js -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+
+    <!-- Load Mediapipe for body tracking -->
+    <script src="https://cdn.jsdelivr.net/npm/@mediapipe/pose"></script>
+
+    <!-- Load TensorFlow.js for AI-based measurement estimation -->
+    <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs"></script>
+
     <style>
-        body { margin: 0; }
-        model-viewer {
-            width: 100vw;
-            height: 100vh;
-        }
+        body { margin: 0; overflow: hidden; }
+        canvas { display: block; }
+        video { position: absolute; top: 0; left: 0; width: 100vw; height: 100vh; opacity: 0.5; }
     </style>
 </head>
 <body>
-    <model-viewer
-        src="./dress.glb"
-        ar
-        ar-modes="webxr scene-viewer quick-look"
-        camera-controls
-        auto-rotate
-        exposure="1.2"
-        shadow-intensity="1">
-    </model-viewer>
+
+    <!-- Video feed from the camera -->
+    <video id="video" autoplay playsinline></video>
+
+    <script>
+        let scene, camera, renderer, dressModel;
+        let poseNet, videoElement;
+
+        async function init() {
+            /*** 1️⃣ Setup Three.js Scene ***/
+            scene = new THREE.Scene();
+            camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
+            camera.position.z = 2;
+
+            renderer = new THREE.WebGLRenderer({ alpha: true });
+            renderer.setSize(window.innerWidth, window.innerHeight);
+            document.body.appendChild(renderer.domElement);
+
+            /*** 2️⃣ Load 3D Dress Model ***/
+            const loader = new THREE.GLTFLoader();
+            loader.load('./dress.glb', (gltf) => {
+                dressModel = gltf.scene;
+                dressModel.scale.set(0.8, 0.8, 0.8);  // Adjust size
+                scene.add(dressModel);
+            });
+
+            /*** 3️⃣ Setup Camera for Body Tracking ***/
+            videoElement = document.getElementById("video");
+            navigator.mediaDevices.getUserMedia({ video: true }).then((stream) => {
+                videoElement.srcObject = stream;
+            });
+
+            /*** 4️⃣ Load Mediapipe BlazePose Model ***/
+            const pose = new Pose({ locateFile: (file) => `https://cdn.jsdelivr.net/npm/@mediapipe/pose/${file}` });
+            pose.setOptions({ modelComplexity: 1, smoothLandmarks: true, minDetectionConfidence: 0.5 });
+            pose.onResults(onPoseDetected);
+
+            /*** 5️⃣ Run Pose Estimation Continuously ***/
+            const videoCapture = new Camera(videoElement, { onFrame: async () => await pose.send({ image: videoElement }) });
+            videoCapture.start();
+
+            /*** 6️⃣ Start Rendering Loop ***/
+            function animate() {
+                requestAnimationFrame(animate);
+                renderer.render(scene, camera);
+            }
+            animate();
+        }
+
+        function onPoseDetected(results) {
+            if (!results.poseLandmarks) return;
+
+            /*** 7️⃣ Adjust Dress Model Position Based on Body ***/
+            const shoulders = results.poseLandmarks[11];  // Shoulder point
+            if (dressModel) {
+                dressModel.position.x = shoulders.x - 0.5;  // Adjust dress position
+                dressModel.position.y = shoulders.y - 1;  // Adjust height
+            }
+        }
+
+        init();
+    </script>
+
 </body>
 </html>
