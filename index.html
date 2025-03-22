@@ -7,6 +7,9 @@
     <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/@mediapipe/pose"></script>
     <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.0.0/firebase-app.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.0.0/firebase-firestore.js"></script>
+    <script src="https://threejs.org/examples/js/loaders/GLTFLoader.js"></script>
     <style>
         body { margin: 0; overflow: hidden; }
         canvas { display: block; }
@@ -15,5 +18,62 @@
 </head>
 <body>
     <video id="video" autoplay playsinline></video>
+    <script>
+      // Your Firebase config
+      const firebaseConfig = {
+        apiKey: "YOUR_API_KEY",
+        authDomain: "YOUR_PROJECT.firebaseapp.com",
+        projectId: "YOUR_PROJECT",
+        storageBucket: "YOUR_PROJECT.appspot.com",
+        messagingSenderId: "YOUR_SENDER_ID",
+        appId: "YOUR_APP_ID"
+      };
+
+      // Initialize Firebase
+      firebase.initializeApp(firebaseConfig);
+      const db = firebase.firestore();
+
+      // Three.js scene setup
+      const scene = new THREE.Scene();
+      const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
+      const renderer = new THREE.WebGLRenderer();
+      renderer.setSize(window.innerWidth, window.innerHeight);
+      document.body.appendChild(renderer.domElement);
+
+      camera.position.z = 2;
+
+      // Fetch User Measurements
+      function fetchMeasurements(userId) {
+        db.collection("user_measurements").doc(userId).get().then((doc) => {
+          if (doc.exists) {
+            const data = doc.data();
+            console.log("Measurements:", data);
+            applyMeasurementsToModel(data);
+          } else {
+            console.log("No such document!");
+          }
+        }).catch((error) => {
+          console.log("Error getting document:", error);
+        });
+      }
+
+      function applyMeasurementsToModel(data) {
+        const loader = new THREE.GLTFLoader();
+        loader.load('body_model.glb', function (gltf) {
+          let model = gltf.scene;
+          model.scale.set(data.height / 175, data.chest / 90, data.waist / 75);
+          scene.add(model);
+          animate();
+        });
+      }
+
+      function animate() {
+        requestAnimationFrame(animate);
+        renderer.render(scene, camera);
+      }
+
+      // Fetch and Apply Measurements
+      fetchMeasurements("user123");
+    </script>
 </body>
 </html>
