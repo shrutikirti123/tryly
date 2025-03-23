@@ -3,78 +3,63 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>WebAR Dress Try-On</title>
+    <title>AR-Based Virtual Try-On</title>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/@mediapipe/pose"></script>
-    <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs"></script>
-    <script defer src="https://www.gstatic.com/firebasejs/9.6.1/firebase-app-compat.js"></script>
-    <script defer src="https://www.gstatic.com/firebasejs/9.6.1/firebase-firestore-compat.js"></script>
-    <script defer src="script.js"></script>
-    <script src="https://threejs.org/examples/js/loaders/GLTFLoader.js"></script>
-    <style>
-        body { margin: 0; overflow: hidden; }
-        canvas { display: block; }
-        video { position: absolute; top: 0; left: 0; width: 100vw; height: 100vh; opacity: 0.5; }
-    </style>
-</head>
-<body>
-    <video id="video" autoplay playsinline></video>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/firebase/10.0.0/firebase-app.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/firebase/10.0.0/firebase-firestore.js"></script>
     <script>
-      // Your Firebase config
-      const firebaseConfig = {
-        apiKey: "AIzaSyA4T3g9R6yLPuZzo1PVBfTo2uchwgw8AW4",
-        authDomain: "tryly-b419f.firebaseapp.com",
-        projectId: "tryly-b419f",
-        storageBucket: "tryly-b419f.firebasestorage.app",
-        messagingSenderId: "295245429248",
-        appId: "1:295245429248:android:4b065b24228c969971f6e5"
-      };
+        const firebaseConfig = {
+            apiKey: "AIzaSyA4T3g9R6yLPuZzo1PVBfTo2uchwgw8AW4",
+            authDomain: "tryly-b419f.firebaseapp.com",
+            projectId: "tryly-b419f",
+            storageBucket: "tryly-b419f.firebasestorage.app",
+            messagingSenderId: "295245429248",
+            appId: "1:295245429248:android:4b065b24228c969971f6e5"
+        };
+        firebase.initializeApp(firebaseConfig);
+        const db = firebase.firestore();
 
-      // Initialize Firebase
-      firebase.initializeApp(firebaseConfig);
-      const db = firebase.firestore();
+        async function fetchUserMeasurements() {
+            try {
+                const querySnapshot = await db.collection("user_measurements").orderBy("timestamp", "desc").limit(1).get();
+                if (!querySnapshot.empty) {
+                    const data = querySnapshot.docs[0].data();
+                    document.getElementById("measurements").innerText = JSON.stringify(data, null, 2);
+                    load3DModel(data);
+                } else {
+                    console.error("No measurement data found.");
+                }
+            } catch (error) {
+                console.error("Error fetching measurements:", error);
+            }
+        }
 
-      // Three.js scene setup
-      const scene = new THREE.Scene();
-      const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
-      const renderer = new THREE.WebGLRenderer();
-      renderer.setSize(window.innerWidth, window.innerHeight);
-      document.body.appendChild(renderer.domElement);
+        function load3DModel(measurements) {
+            const scene = new THREE.Scene();
+            const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
+            const renderer = new THREE.WebGLRenderer();
+            renderer.setSize(window.innerWidth, window.innerHeight);
+            document.body.appendChild(renderer.domElement);
 
-      camera.position.z = 2;
+            const loader = new THREE.GLTFLoader();
+            loader.load('path/to/3d_model.glb', function (gltf) {
+                const model = gltf.scene;
+                model.scale.set(measurements.height / 170, measurements.height / 170, measurements.height / 170);
+                scene.add(model);
+                animate();
+            }, undefined, function (error) {
+                console.error("Error loading 3D model:", error);
+            });
 
-      // Fetch User Measurements
-      function fetchMeasurements(userId) {
-        db.collection("user_measurements").doc(userId).get().then((doc) => {
-          if (doc.exists) {
-            const data = doc.data();
-            console.log("Measurements:", data);
-            applyMeasurementsToModel(data);
-          } else {
-            console.log("No such document!");
-          }
-        }).catch((error) => {
-          console.log("Error getting document:", error);
-        });
-      }
-
-      function applyMeasurementsToModel(data) {
-        const loader = new THREE.GLTFLoader();
-        loader.load('body_model.glb', function (gltf) {
-          let model = gltf.scene;
-          model.scale.set(data.height / 175, data.chest / 90, data.waist / 75);
-          scene.add(model);
-          animate();
-        });
-      }
-
-      function animate() {
-        requestAnimationFrame(animate);
-        renderer.render(scene, camera);
-      }
-
-      // Fetch and Apply Measurements
-      fetchMeasurements("user123");
+            function animate() {
+                requestAnimationFrame(animate);
+                renderer.render(scene, camera);
+            }
+        }
     </script>
+</head>
+<body onload="fetchUserMeasurements()">
+    <h1>Virtual Try-On</h1>
+    <pre id="measurements"></pre>
 </body>
 </html>
