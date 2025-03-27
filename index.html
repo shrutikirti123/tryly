@@ -3,15 +3,12 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <meta-data android:name="flutterEmbedding" android:value="2" />
-    <meta-data android:name="flutter.js" android:value="true" />
-    <title>WebAR Dress Try-On</title>
+    <title>AI-Powered AR Dress Try-On</title>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/@mediapipe/pose"></script>
     <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs"></script>
     <script defer src="https://www.gstatic.com/firebasejs/9.0.0/firebase-app-compat.js"></script>
     <script defer src="https://www.gstatic.com/firebasejs/9.0.0/firebase-firestore-compat.js"></script>
-    <script defer src="script.js"></script>
     <script src="https://threejs.org/examples/js/loaders/GLTFLoader.js"></script>
     <style>
         body { margin: 0; overflow: hidden; }
@@ -24,14 +21,13 @@
     <script>
       // Firebase configuration
       const firebaseConfig = {
-        apiKey: "AIzaSyA4T3g9R6yLPuZzo1PVBfTo2uchwgw8AW4",
-        authDomain: "tryly-b419f.firebaseapp.com",
-        projectId: "tryly-b419f",
-        storageBucket: "tryly-b419f.firebasestorage.app",
-        messagingSenderId: "295245429248",
-        appId: "1:295245429248:android:4b065b24228c969971f6e5"
+        apiKey: "YOUR_API_KEY",
+        authDomain: "YOUR_AUTH_DOMAIN",
+        projectId: "YOUR_PROJECT_ID",
+        storageBucket: "YOUR_STORAGE_BUCKET",
+        messagingSenderId: "YOUR_MESSAGING_SENDER_ID",
+        appId: "YOUR_APP_ID"
       };
-      
       firebase.initializeApp(firebaseConfig);
       const db = firebase.firestore();
 
@@ -43,12 +39,12 @@
       document.body.appendChild(renderer.domElement);
       camera.position.z = 2;
 
-      // Load and apply user measurements
-      function fetchMeasurements(userId) {
-        db.collection("user_measurements").doc(userId).get().then((doc) => {
+      // Load AI-generated 3D model
+      function loadGeneratedModels(userId) {
+        db.collection("user_models").doc(userId).get().then((doc) => {
           if (doc.exists) {
             const data = doc.data();
-            applyMeasurementsToModel(data);
+            loadModel(data.bodyModelUrl, data.dressModelUrl);
           } else {
             console.log("No such document!");
           }
@@ -57,17 +53,15 @@
         });
       }
 
-      function applyMeasurementsToModel(data) {
+      function loadModel(bodyUrl, dressUrl) {
         const loader = new THREE.GLTFLoader();
-        loader.load('body_model.glb', function (gltf) {
+        loader.load(bodyUrl, function (gltf) {
           let bodyModel = gltf.scene;
-          bodyModel.scale.set(data.height / 175, data.chest / 90, data.waist / 75);
           scene.add(bodyModel);
         });
-
-        loader.load('dress_model.glb', function (gltf) {
+        
+        loader.load(dressUrl, function (gltf) {
           let dressModel = gltf.scene;
-          dressModel.scale.set(data.height / 175, data.chest / 90, data.waist / 75);
           dressModel.position.set(0, 0, 0.1);
           scene.add(dressModel);
           animate();
@@ -79,8 +73,7 @@
         renderer.render(scene, camera);
       }
 
-      // Fetch and Apply Measurements
-      fetchMeasurements("user123");
+      loadGeneratedModels("user123");
     </script>
 </body>
 </html>
